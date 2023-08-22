@@ -56,7 +56,7 @@ Once connected, you can run SQL queries and test the connection pooling by openi
 You can monitor PgBouncer by connecting to its admin console:
 
 ```
-psql -p 6432 -U pgbouncer -d pgbouncer
+PGPASSWORD=password psql -p 6432 -U username -d pgbouncer
 ```
 
 Then, you can run various commands to see the state:

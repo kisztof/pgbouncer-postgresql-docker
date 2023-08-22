@@ -1,14 +1,24 @@
 version: '3.7'
 services:
   postgres:
-    image: postgres:13
+    image: postgres:14
     environment:
       POSTGRES_USER: username
       POSTGRES_PASSWORD: password
 
   pgbouncer:
-    build: ./pgbouncer
+    image: bitnami/pgbouncer
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_USERNAME: username
+      POSTGRESQL_PASSWORD: password
+      POSTGRESQL_DATABASE: postgres
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_PORT: 6432
     ports:
       - "6432:6432"
     depends_on:
       - postgres
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+
