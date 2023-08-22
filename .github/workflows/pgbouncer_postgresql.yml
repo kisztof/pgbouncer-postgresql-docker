@@ -1,0 +1,63 @@
+name: Build and Test PgBouncer and PostgreSQL
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:stable
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        options: --privileged
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Cache APT packages
+        uses: actions/cache@v2
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+      - name: Build and Start Containers
+        run: docker-compose up -d
+
+      - name: Print PgBouncer Logs
+        run: docker-compose logs pgbouncer
+
+      - name: Verify PgBouncer is Running
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          docker-compose ps # Lists the status of all services
+          count=0
+          until PGPASSWORD=password psql -h pgbouncer -p 6432 -U pgbouncer -d pgbouncer -c 'SHOW STATS;' || [[ $count -eq 15 ]]; do
+            sleep 2
+            count=$((count + 1))
+          done
+          if [[ $count -eq 15 ]]; then
+            echo "Failed to connect to PgBouncer within timeout"
+            docker-compose logs pgbouncer # Print PgBouncer logs for debugging, assuming the service name is "pgbouncer"
+            exit 1
+          fi
+          echo "PgBouncer is working!"
+
+      - name: Stop Containers
+        run: docker-compose down
